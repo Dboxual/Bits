@@ -1,0 +1,15 @@
+name: Bits
+version: '1.0.0'
+main: com.bits.BitsPlugin
+api-version: '1.21'
+description: Player currency plugin
+
+commands:
+  bits:
+    description: Manage your Bits balance
+    usage: /bits [pay|give|take|set|balance|help] [args...]
+
+permissions:
+  bits.admin:
+    description: Access to admin Bits commands (give, take, set, check others' balances)
+    default: op

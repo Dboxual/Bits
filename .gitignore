@@ -1,0 +1,31 @@
+# Gradle cache
+.gradle/
+
+# Compiled intermediates (not release jars)
+bin/
+build/classes/
+build/resources/
+build/reports/
+build/tmp/
+build/generated/
+build/sources.txt
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Javac arg files
+javac.*.args
+
+# Logs
+*.log
+
+# Note: build/Bits-*.jar is intentionally tracked as a release artifact
+# Note: gradlew and gradle/wrapper/ are intentionally tracked

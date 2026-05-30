@@ -1,0 +1,3 @@
+settings:
+  # Starting balance for players with no recorded balance
+  starting-balance: 0
