@@ -1,10 +1,11 @@
 package com.bits.data;
 
 import com.bits.BitsPlugin;
+import com.bits.api.BitsEconomy;
 
 import java.util.UUID;
 
-public class BalanceManager {
+public class BalanceManager implements BitsEconomy {
 
     private final BitsPlugin plugin;
     private final BalanceStorage storage;
@@ -14,21 +15,34 @@ public class BalanceManager {
         this.storage = storage;
     }
 
+    @Override
     public long getBalance(UUID uuid) {
         long starting = plugin.getConfig().getLong("settings.starting-balance", 0);
         return storage.getBalances().getOrDefault(uuid, starting);
     }
 
+    @Override
     public void setBalance(UUID uuid, long amount) {
         storage.getBalances().put(uuid, Math.max(0, amount));
     }
 
-    public void give(UUID uuid, long amount) {
-        setBalance(uuid, getBalance(uuid) + amount);
+    @Override
+    public boolean has(UUID uuid, long amount) {
+        return amount >= 0 && getBalance(uuid) >= amount;
     }
 
-    /** Returns false if the player has insufficient funds. */
-    public boolean take(UUID uuid, long amount) {
+    @Override
+    public void deposit(UUID uuid, long amount) {
+        if (amount <= 0) return;
+        long current = getBalance(uuid);
+        long next = current + amount;
+        if (next < current) next = Long.MAX_VALUE; // overflow guard
+        setBalance(uuid, next);
+    }
+
+    @Override
+    public boolean withdraw(UUID uuid, long amount) {
+        if (amount <= 0) return false;
         long current = getBalance(uuid);
         if (current < amount) return false;
         setBalance(uuid, current - amount);
@@ -37,9 +51,10 @@ public class BalanceManager {
 
     /** Returns false if the payer has insufficient funds. */
     public boolean pay(UUID from, UUID to, long amount) {
-        if (getBalance(from) < amount) return false;
-        setBalance(from, getBalance(from) - amount);
-        give(to, amount);
+        long fromBalance = getBalance(from);
+        if (fromBalance < amount) return false;
+        setBalance(from, fromBalance - amount);
+        deposit(to, amount);
         return true;
     }
 

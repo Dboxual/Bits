@@ -1,8 +1,9 @@
 name: Bits
-version: '1.0.0'
+version: '1.0.1'
 main: com.bits.BitsPlugin
 api-version: '1.21'
 description: Player currency plugin
+softdepend: [Vault]
 
 commands:
   bits:

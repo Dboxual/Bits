@@ -3,6 +3,7 @@ package com.bits.commands;
 import com.bits.BitsPlugin;
 import com.bits.data.BalanceManager;
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -46,7 +47,7 @@ public class BitsCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
-    // -------------------------------------------------------------------------
+    // ── Subcommands ───────────────────────────────────────────────────────────
 
     private void sendHelp(CommandSender sender) {
         sender.sendMessage("§6--- Bits Help ---");
@@ -73,9 +74,11 @@ public class BitsCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§cYou don't have permission to check other players' balances.");
             return;
         }
-        Player target = Bukkit.getPlayerExact(args[1]);
+        OfflinePlayer target = resolvePlayer(args[1]);
         if (target == null) { sender.sendMessage("§cPlayer not found: " + args[1]); return; }
-        sender.sendMessage("§6" + target.getName() + "'s balance: §e" + balances.getBalance(target.getUniqueId()) + " bits");
+        String name = target.getName() != null ? target.getName() : args[1];
+        sender.sendMessage("§6" + name + "'s balance: §e" + balances.getBalance(target.getUniqueId()) + " bits"
+                + (target.isOnline() ? "" : " §7(offline)"));
     }
 
     private void handlePay(CommandSender sender, String[] args) {
@@ -83,7 +86,7 @@ public class BitsCommand implements CommandExecutor, TabCompleter {
         if (args.length < 3) { sender.sendMessage("§cUsage: /bits pay <player> <amount>"); return; }
 
         Player target = Bukkit.getPlayerExact(args[1]);
-        if (target == null) { sender.sendMessage("§cPlayer not found: " + args[1]); return; }
+        if (target == null) { sender.sendMessage("§cPlayer not found or not online: " + args[1]); return; }
         if (target.equals(payer)) { sender.sendMessage("§cYou cannot pay yourself."); return; }
 
         long amount = parsePositive(sender, args[2]);
@@ -102,15 +105,16 @@ public class BitsCommand implements CommandExecutor, TabCompleter {
         if (!sender.hasPermission("bits.admin")) { sender.sendMessage("§cNo permission."); return; }
         if (args.length < 3) { sender.sendMessage("§cUsage: /bits give <player> <amount>"); return; }
 
-        Player target = Bukkit.getPlayerExact(args[1]);
+        OfflinePlayer target = resolvePlayer(args[1]);
         if (target == null) { sender.sendMessage("§cPlayer not found: " + args[1]); return; }
 
         long amount = parsePositive(sender, args[2]);
         if (amount < 0) return;
 
-        balances.give(target.getUniqueId(), amount);
-        sender.sendMessage("§aGave §e" + amount + " bits §ato §6" + target.getName() + "§a. Balance: §e" + balances.getBalance(target.getUniqueId()));
-        target.sendMessage("§aYou were given §e" + amount + " bits§a. Balance: §e" + balances.getBalance(target.getUniqueId()));
+        balances.deposit(target.getUniqueId(), amount);
+        String name = target.getName() != null ? target.getName() : args[1];
+        sender.sendMessage("§aGave §e" + amount + " bits §ato §6" + name + "§a. Balance: §e" + balances.getBalance(target.getUniqueId()));
+        if (target.isOnline()) ((Player) target).sendMessage("§aYou were given §e" + amount + " bits§a. Balance: §e" + balances.getBalance(target.getUniqueId()));
         balances.save();
     }
 
@@ -118,18 +122,19 @@ public class BitsCommand implements CommandExecutor, TabCompleter {
         if (!sender.hasPermission("bits.admin")) { sender.sendMessage("§cNo permission."); return; }
         if (args.length < 3) { sender.sendMessage("§cUsage: /bits take <player> <amount>"); return; }
 
-        Player target = Bukkit.getPlayerExact(args[1]);
+        OfflinePlayer target = resolvePlayer(args[1]);
         if (target == null) { sender.sendMessage("§cPlayer not found: " + args[1]); return; }
 
         long amount = parsePositive(sender, args[2]);
         if (amount < 0) return;
 
-        if (!balances.take(target.getUniqueId(), amount)) {
-            sender.sendMessage("§c" + target.getName() + " only has §e" + balances.getBalance(target.getUniqueId()) + " bits§c.");
+        String name = target.getName() != null ? target.getName() : args[1];
+        if (!balances.withdraw(target.getUniqueId(), amount)) {
+            sender.sendMessage("§c" + name + " only has §e" + balances.getBalance(target.getUniqueId()) + " bits§c.");
             return;
         }
-        sender.sendMessage("§aTook §e" + amount + " bits §afrom §6" + target.getName() + "§a. Balance: §e" + balances.getBalance(target.getUniqueId()));
-        target.sendMessage("§c" + amount + " bits were taken from you. Balance: §e" + balances.getBalance(target.getUniqueId()));
+        sender.sendMessage("§aTook §e" + amount + " bits §afrom §6" + name + "§a. Balance: §e" + balances.getBalance(target.getUniqueId()));
+        if (target.isOnline()) ((Player) target).sendMessage("§c" + amount + " bits were taken from you. Balance: §e" + balances.getBalance(target.getUniqueId()));
         balances.save();
     }
 
@@ -137,19 +142,20 @@ public class BitsCommand implements CommandExecutor, TabCompleter {
         if (!sender.hasPermission("bits.admin")) { sender.sendMessage("§cNo permission."); return; }
         if (args.length < 3) { sender.sendMessage("§cUsage: /bits set <player> <amount>"); return; }
 
-        Player target = Bukkit.getPlayerExact(args[1]);
+        OfflinePlayer target = resolvePlayer(args[1]);
         if (target == null) { sender.sendMessage("§cPlayer not found: " + args[1]); return; }
 
         long amount = parseNonNegative(sender, args[2]);
         if (amount < 0) return;
 
+        String name = target.getName() != null ? target.getName() : args[1];
         balances.setBalance(target.getUniqueId(), amount);
-        sender.sendMessage("§aSet §6" + target.getName() + "§a's balance to §e" + amount + " bits§a.");
-        target.sendMessage("§aYour balance was set to §e" + amount + " bits§a.");
+        sender.sendMessage("§aSet §6" + name + "§a's balance to §e" + amount + " bits§a.");
+        if (target.isOnline()) ((Player) target).sendMessage("§aYour balance was set to §e" + amount + " bits§a.");
         balances.save();
     }
 
-    // -------------------------------------------------------------------------
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     /** Parses a positive (>0) long. Returns -1 and sends an error on failure. */
     private long parsePositive(CommandSender sender, String str) {
@@ -173,6 +179,20 @@ public class BitsCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage("§cInvalid amount: §e" + str);
             return -1;
         }
+    }
+
+    /**
+     * Resolves a player name to an OfflinePlayer.
+     * Checks online players first, then the server's offline player cache.
+     * Returns null if the name has never been seen by this server.
+     */
+    private OfflinePlayer resolvePlayer(String name) {
+        Player online = Bukkit.getPlayerExact(name);
+        if (online != null) return online;
+        for (OfflinePlayer op : Bukkit.getOfflinePlayers()) {
+            if (name.equalsIgnoreCase(op.getName())) return op;
+        }
+        return null;
     }
 
     @Override

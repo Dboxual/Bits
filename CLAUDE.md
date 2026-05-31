@@ -2,18 +2,38 @@
 
 ## Project purpose
 
-Bits is a standalone player currency plugin for Paper 1.21.1. It provides a simple integer-based balance system with player-to-player payments and admin management commands. No Vault, no GUI, no external dependencies beyond Paper.
+Bits is a Paper 1.21 player currency plugin that serves as the shared economy foundation for the server. It provides an integer-based balance system with player-to-player payments, admin management, a public API for inter-plugin use, and a Vault economy bridge.
 
 ---
 
 ## Architecture
 
 ```
-BitsPlugin                    — entry point; wires storage, manager, command handler
-  BalanceStorage              — YAML persistence (balances.yml); keyed by UUID
-  BalanceManager              — in-memory balance operations: get/set/give/take/pay
-  BitsCommand                 — /bits handler + tab completion; implements CommandExecutor + TabCompleter
+BitsPlugin                       — entry point; wires storage, manager, command handler,
+                                   Bukkit service registration, and optional Vault bridge
+  BalanceStorage                 — YAML persistence (balances.yml); keyed by UUID
+  BalanceManager (→ BitsEconomy) — in-memory balance operations; implements the public API
+  BitsCommand                    — /bits handler + tab completion
+  api/BitsEconomy                — public interface for inter-plugin use
+  vault/VaultEconomyBridge       — Vault Economy implementation backed by BalanceManager
 ```
+
+---
+
+## Inter-plugin API
+
+Other plugins should use the Bukkit service lookup — never cast to `BitsPlugin` directly:
+
+```java
+RegisteredServiceProvider<BitsEconomy> rsp =
+    Bukkit.getServicesManager().getRegistration(BitsEconomy.class);
+if (rsp != null) {
+    BitsEconomy economy = rsp.getProvider();
+    economy.deposit(playerUUID, 100L);
+}
+```
+
+Plugins that use Vault can also interact via the `Economy` service — Bits registers itself as a Vault provider when Vault is present.
 
 ---
 
@@ -26,46 +46,55 @@ balances:
   <uuid>: <long>
 ```
 
-Loaded into a `HashMap<UUID, Long>` at startup. Written back on every mutating transaction (`give`, `take`, `set`, `pay`) and on plugin disable.
+Loaded into a `HashMap<UUID, Long>` at startup. Written back on every mutating transaction and on plugin disable.
 
-The `starting-balance` in `config.yml` is used as the default value for players with no entry — it is **not** pre-populated into the map on first join.
+The `starting-balance` in `config.yml` is the default for players with no entry — it is **not** pre-populated on first join.
 
 ---
 
 ## Balance rules
 
-- All balances are stored as `long` (whole numbers, no decimals).
-- Minimum balance is `0` — `setBalance()` clamps at zero.
-- `take()` and `pay()` are atomic: they return `false` without modifying anything if the source has insufficient funds.
+- All balances are `long` (whole numbers only — no decimals).
+- Minimum balance is `0` — `setBalance()` clamps below zero to zero.
+- `withdraw()` and `pay()` are atomic: return `false` without modifying anything if funds are insufficient.
+- `deposit()` guards against `Long` overflow by clamping at `Long.MAX_VALUE`.
 - `/bits pay` requires both players to be online.
-- Admin commands (`give`, `take`, `set`) require target to be online in v1.0.0.
+- Admin commands (`give`, `take`, `set`, `balance`) support offline players via the server's offline player cache.
 
 ---
 
 ## Command map
 
-| Subcommand | Permission | Args |
-|---|---|---|
-| (none) | — | Shows sender's balance |
-| `balance [player]` | `bits.admin` for others | Optional player name |
-| `pay <player> <amount>` | — | Player must be online |
-| `give <player> <amount>` | `bits.admin` | Positive amount |
-| `take <player> <amount>` | `bits.admin` | Positive amount |
-| `set <player> <amount>` | `bits.admin` | Non-negative amount (0 allowed) |
-| `help` | — | Lists admin commands only if sender has `bits.admin` |
+| Subcommand | Permission | Online-only? | Notes |
+|---|---|---|---|
+| (none) | — | Player only | Shows sender's balance |
+| `balance [player]` | `bits.admin` for others | No | Works offline |
+| `pay <player> <amount>` | — | Yes | Both players must be online |
+| `give <player> <amount>` | `bits.admin` | No | Works offline |
+| `take <player> <amount>` | `bits.admin` | No | Works offline |
+| `set <player> <amount>` | `bits.admin` | No | Works offline |
+| `help` | — | No | Admin subcommands shown only to `bits.admin` |
 
-Tab completion: subcommands on arg 1, online player names on arg 2 for player-targeting subcommands.
+---
+
+## Vault bridge
+
+`VaultEconomyBridge` implements `net.milkbowl.vault.economy.Economy` and is registered when Vault is on the server. Key behaviour:
+- `fractionalDigits()` returns `0` — no decimal support
+- Fractional Vault amounts are truncated (`(long) amount`) before passing to `BalanceManager`
+- Bank methods all return `NOT_IMPLEMENTED`
+- String-name lookups resolve online players first, then offline player cache
 
 ---
 
 ## Build
 
 ```bash
-JAVA_HOME=~/tools/jdk-21.0.11+10 ~/tools/gradle-8.13/bin/gradle jar
-# Output: build/Bits-1.0.0.jar
+./gradlew clean jar
+# Output: build/Bits-1.0.1.jar
 ```
 
-Gradle downloads Paper API from `https://repo.papermc.io/repository/maven-public/` automatically. No libs/ directory needed.
+Gradle downloads Paper API and Vault API (via JitPack) automatically. No local libs needed.
 
 ---
 
@@ -74,7 +103,7 @@ Gradle downloads Paper API from `https://repo.papermc.io/repository/maven-public
 Before ending any work session:
 
 1. Increment the version in `plugin.yml` and `build.gradle.kts`.
-2. Run the build command and confirm the jar is produced.
+2. Run `./gradlew clean jar` and confirm the jar is produced.
 3. Update `CHANGELOG.md` with a dated entry.
 4. Commit all modified source files and the new jar together.
 
@@ -83,7 +112,7 @@ Before ending any work session:
 ## Future phases (not yet implemented)
 
 - Mob kill rewards (configurable per mob type)
-- Vault economy bridge
+- PlaceholderAPI expansion (`%bits_balance%`)
 - Bridge minigame — bits awarded per win
 - ClaimChest integration
-- Shop / GUI system
+- Starting balance written on first join event
