@@ -1,3 +1,50 @@
 settings:
   # Starting balance for players with no recorded balance
   starting-balance: 0
+
+mob-rewards:
+  enabled: true
+  # Minimum fraction of total damage a player must have dealt to receive a reward (0.0–1.0).
+  min-damage-fraction: 0.10
+  # Whether to reward mobs that spawned from a spawner block (false = no reward).
+  reward-spawner-mobs: false
+  # Daily Bits cap per player from mob kills (0 = no cap).
+  daily-cap: 500
+  diminishing-returns:
+    # Multiplier reduction per successive kill of the same mob type per player (resets daily).
+    # e.g. 0.10 = -10% per kill: kill 1 = 100%, kill 2 = 90%, kill 3 = 80%, ...
+    decay-per-kill: 0.10
+    # Minimum multiplier floor (e.g. 0.10 = at least 10% of base reward, no matter how many kills).
+    floor: 0.10
+  # Base Bits reward per mob type (EntityType name, case-insensitive). Omit to give no reward.
+  rewards:
+    ZOMBIE: 5
+    SKELETON: 5
+    CREEPER: 8
+    SPIDER: 4
+    CAVE_SPIDER: 6
+    WITCH: 10
+    ENDERMAN: 15
+    DROWNED: 5
+    HUSK: 5
+    STRAY: 5
+    SLIME: 3
+    PHANTOM: 8
+    PILLAGER: 8
+    VINDICATOR: 10
+    EVOKER: 25
+    VEX: 3
+    RAVAGER: 30
+    SILVERFISH: 2
+    BLAZE: 12
+    WITHER_SKELETON: 20
+    GHAST: 15
+    MAGMA_CUBE: 3
+    PIGLIN_BRUTE: 20
+    HOGLIN: 10
+    ZOGLIN: 10
+    GUARDIAN: 15
+    ELDER_GUARDIAN: 50
+    SHULKER: 12
+    ENDERMITE: 2
+    WARDEN: 100

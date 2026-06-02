@@ -1,5 +1,39 @@
 # Changelog
 
+## v1.1.0 — 2026-06-02
+### Mob kill rewards — anti-farm edition
+
+**New: Mob kill rewards (`mob-rewards` config section)**
+- Players earn Bits for killing hostile mobs; base reward is configured per EntityType in `config.yml`
+- 29 mob types included in defaults (zombies through Warden)
+
+**New: Active damage contribution requirement**
+- Tracks damage dealt per player per entity via `EntityDamageByEntityEvent` (direct hits and player-fired projectiles)
+- Only the top damage dealer qualifies; they must have dealt at least `min-damage-fraction` (default 10%) of total damage — prevents AFK players benefiting from others' kills or wolf/golem kills
+
+**New: Spawner mob exclusion**
+- Entities spawned from a spawner block are marked via `CreatureSpawnEvent` and excluded from rewards by default (`reward-spawner-mobs: false`)
+
+**New: Per-player per-mob-type diminishing returns**
+- Successive kills of the same mob type reduce the reward by `decay-per-kill` (default 10%) per kill
+- A configurable `floor` (default 10%) ensures there is always a minimum payout at scale
+- Counters reset daily alongside the daily cap
+
+**New: Daily soft cap**
+- Optional `daily-cap` (default 500 Bits) stops mob kill rewards once a player has earned that amount today
+- Set to `0` to disable
+- Remaining cap budget is respected: if a kill would push a player past the cap, only the remaining budget is awarded
+
+**New: Persistent kill tracking (`mob_kills.yml`)**
+- Stores per-player: date, daily Bits earned, and kill count per mob type
+- Stale data (prior calendar day) is silently discarded on load
+- Saved after every rewarded kill and on plugin disable
+
+**New: In-game reward notification**
+- Players receive `+N Bits [Mob Name]` in chat when a kill is rewarded
+
+---
+
 ## v1.0.1 — 2026-05-31
 ### Foundation release — shared economy API, Vault bridge, offline player support
 

@@ -1,5 +1,5 @@
 name: Bits
-version: '1.0.1'
+version: '1.1.0'
 main: com.bits.BitsPlugin
 api-version: '1.21'
 description: Player currency plugin
