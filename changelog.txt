@@ -1,0 +1,16 @@
+Bits Plugin Changelog
+=====================
+
+v1.0.0 — Initial release
+--------------------------
+- Core currency plugin for Paper 1.21.x / Java 21.
+- /bits — show your balance (players only)
+- /bits balance [player] — check balance; [player] requires bits.admin
+- /bits pay <player> <amount> — transfer bits to an online player
+- /bits give <player> <amount> — add bits (bits.admin)
+- /bits take <player> <amount> — remove bits (bits.admin)
+- /bits set <player> <amount> — set balance exactly (bits.admin)
+- Persistent balance storage (plugins/Bits/balances.yml, UUID-keyed)
+- Configurable starting balance (config.yml: settings.starting-balance)
+- bits.admin permission defaults to op
+- Tab completion for subcommands and online player names

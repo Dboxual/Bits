@@ -1,0 +1,83 @@
+=====================================
+Bits Plugin — ChatGPT Handoff Log
+=====================================
+Newest session at top. Do not remove older entries.
+See changelog.txt for version history.
+=====================================
+
+
+-------------------------------------
+Session: Bits v1.0.0 — Clean Restart
+Date: 2026-06-03
+-------------------------------------
+
+Goal:
+  Full restart from scratch. All previous versions (v1.0.1, v1.1.0, v1.2.0,
+  rollback attempt) were discarded. This is the definitive v1.0.0 foundation —
+  minimal, no integrations, no mob rewards.
+
+Files Present (full list):
+  src/main/java/com/bits/BitsPlugin.java
+  src/main/java/com/bits/commands/BitsCommand.java
+  src/main/java/com/bits/data/BalanceManager.java
+  src/main/java/com/bits/data/BalanceStorage.java
+  src/main/resources/config.yml
+  src/main/resources/plugin.yml
+  build.gradle.kts
+  settings.gradle.kts
+  changelog.txt
+  chatgpt.txt
+
+Files Deleted (not present in this version):
+  src/main/java/com/bits/api/BitsEconomy.java       (public API interface — removed)
+  src/main/java/com/bits/vault/VaultEconomyBridge.java (Vault bridge — removed)
+  src/main/java/com/bits/mobs/*                      (all mob reward code — removed)
+
+Build Result:
+  SUCCESS — build/Bits-1.0.0.jar
+
+Architecture:
+  BitsPlugin (main)
+    -> BalanceStorage  — loads/saves balances.yml on disk (UUID -> long)
+    -> BalanceManager  — in-memory balance operations (get/set/deposit/withdraw/pay)
+    -> BitsCommand     — handles /bits and all subcommands; implements TabCompleter
+
+  No event listeners. No service registrations. No soft dependencies.
+
+Command Reference:
+  /bits                          — show own balance (players only)
+  /bits balance [player]         — check balance; [player] requires bits.admin
+  /bits pay <player> <amount>    — transfer to online player; can't pay self
+  /bits give <player> <amount>   — bits.admin: add to any player (online or offline)
+  /bits take <player> <amount>   — bits.admin: remove from any player
+  /bits set <player> <amount>    — bits.admin: set balance exactly (0 or more)
+
+Permissions:
+  bits.admin — defaults to op; gates give/take/set and balance-check-other
+
+Storage:
+  File: plugins/Bits/balances.yml
+  Format: YAML, key = UUID string, value = long
+  Saved on: every give/take/set/pay command, and on plugin disable
+  Loaded on: plugin enable
+
+Config:
+  plugins/Bits/config.yml
+  settings.starting-balance: 0   (balance returned for players with no record)
+
+Assumptions / Constraints:
+  - Balances are non-negative longs. setBalance clamps to 0 if given negative.
+  - deposit() clamps at Long.MAX_VALUE (overflow guard).
+  - /bits pay requires the target to be online.
+  - /bits give/take/set work on offline players via server's offline player cache.
+  - No Vault. No economy API. No integrations of any kind.
+
+Known Gaps (intentional for this version):
+  - No mob kill rewards.
+  - No economy bridge for other plugins.
+  - No /bits help subcommand (was in previous version; not required for v1.0.0).
+
+Next Recommended Task:
+  1. Drop Bits-1.0.0.jar into plugins/, restart server, run the testing checklist.
+  2. Once verified, begin TotemAltars plugin (separate project).
+  3. Mob kill rewards can be added back as a separate feature after TotemAltars.
