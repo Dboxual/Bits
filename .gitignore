@@ -27,5 +27,17 @@ javac.*.args
 # Logs
 *.log
 
-# Note: build/Bits-*.jar is intentionally tracked as a release artifact
+# General build output
+target/
+out/
+cache/
+
+# Claude Code local project settings (machine-specific)
+.claude/
+
+# Old release jars — only the current release jar is tracked in build/
+build/Bits-*.jar
+build/Bops-*.jar
+
+# Note: only the current release jar (build/Bops-<version>.jar) is intentionally tracked
 # Note: gradlew and gradle/wrapper/ are intentionally tracked
