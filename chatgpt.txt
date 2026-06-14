@@ -696,3 +696,10 @@ Next Recommended Task:
   1. Drop Bits-1.0.0.jar into plugins/, restart server, run the testing checklist.
   2. Once verified, begin TotemAltars plugin (separate project).
   3. Mob kill rewards can be added back as a separate feature after TotemAltars.
+
+---
+[2026-06-14] BRANCH CLEANUP
+- Merged: dev → main (fast-forward, 4 commits)
+- Final main commit: 4e194076e1b93b06ab2b35a8a0010ac500cf9919
+- Dev deleted: YES (local and remote)
+- Notes: Package rename com.bits → com.bops applied across all source. History preserved.
