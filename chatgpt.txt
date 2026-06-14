@@ -1,9 +1,624 @@
 =====================================
-Bits Plugin — ChatGPT Handoff Log
+Bops Plugin — ChatGPT Handoff Log
 =====================================
 Newest session at top. Do not remove older entries.
 See changelog.txt for version history.
 =====================================
+
+
+-------------------------------------
+Session: Bops v1.1.5 — Add %bops_balance_whole% and %bops_balance_commas% to BopsPlaceholderExpansion
+Date: 2026-06-10
+-------------------------------------
+
+Goal:
+  Fix %bops_balance_whole% showing as literal text in TAB scoreboard. Root cause:
+  balance_whole and balance_commas were only present in BitsLegacyExpansion, not in
+  BopsPlaceholderExpansion. TAB was configured to use %bops_*% (not %bits_*%),
+  so the missing case returned null and PAPI left the placeholder unparsed.
+
+What Changed:
+
+  BopsPlaceholderExpansion.java
+    - New switch case: "balance_commas" → fmtCommas(balance) (alias for balance_formatted)
+    - New switch case: "balance_whole" → fmtWhole(balance)
+    - New private helper fmtWhole(double v):
+        Uses Math.floor() to truncate (never rounds up)
+        Casts to long, then formats with NumberFormat (Locale.US, groupingUsed=true)
+        Min/max fraction digits = 0 so no decimal point appears
+    - getVersion() bumped 1.1.4 → 1.1.5
+
+  BitsLegacyExpansion.java
+    - getVersion() bumped 1.1.4 → 1.1.5 (keeps PAPI version cache fresh; logic unchanged)
+
+  BopsPlugin.java
+    - Startup log updated to list all five bops placeholders
+
+  build.gradle.kts
+    - version = "1.1.5"
+
+  plugin.yml
+    - version: '1.1.5'
+
+Full Placeholder List After This Change:
+
+  BopsPlaceholderExpansion (identifier "bops"):
+    %bops_balance%           — trailing zeros stripped (e.g. 1542.87 or 100)
+    %bops_balance_formatted% — commas + 2 decimal places (e.g. 1,542.87)
+    %bops_balance_commas%    — alias for balance_formatted
+    %bops_balance_raw%       — always 2 decimal places, no commas (e.g. 1542.87)
+    %bops_balance_whole%     — whole number only, comma-grouped (e.g. 1,542)
+
+  BitsLegacyExpansion (identifier "bits") — unchanged:
+    %bits_balance%           — same as bops_balance
+    %bits_balance_formatted% — same as bops_balance_formatted
+    %bits_balance_commas%    — same as bops_balance_commas
+    %bits_balance_raw%       — same as bops_balance_raw
+    %bits_balance_whole%     — same as bops_balance_whole
+
+Jar Path:
+  build/Bops-1.1.5.jar
+
+What to Test In-Game:
+  1. Replace Bops-1.1.4.jar with Bops-1.1.5.jar in plugins/ and restart server.
+  2. Confirm startup log: "PlaceholderAPI support enabled — %bops_balance%, %bops_balance_raw%, %bops_balance_formatted%, %bops_balance_commas%, %bops_balance_whole% active."
+  3. /papi parse me %bops_balance_whole%
+       → With balance 0.00   : expect "0"
+       → With balance 1.99   : expect "1"  (must NOT be "2")
+       → With balance 1234.56: expect "1,234"
+       → With balance 50000.75: expect "50,000"
+  4. /bops give <you> 1234.56, then /papi parse me %bops_balance_whole% → "1,234"
+  5. /papi parse me %bops_balance_commas% → commas + 2 decimal places (e.g. "1,234.56")
+  6. Confirm TAB scoreboard now shows parsed value instead of literal %bops_balance_whole%
+  7. Confirm all existing placeholders unchanged:
+       /papi parse me %bops_balance%           → stripped zeros (e.g. "1,234.56" style)
+       /papi parse me %bops_balance_formatted% → "1,234.56"
+       /papi parse me %bops_balance_raw%       → "1234.56"
+       /papi parse me %bits_balance_whole%     → same result as %bops_balance_whole%
+
+-------------------------------------
+Session: Bops v1.1.4 — Add %bits_balance_whole% placeholder
+Date: 2026-06-10
+-------------------------------------
+
+Goal:
+  Add a whole-number, comma-formatted PlaceholderAPI placeholder under the
+  existing "bits" identifier so TAB (or any other plugin) can display a
+  player's Bops balance without any decimal places.
+
+What Changed:
+
+  BitsLegacyExpansion.java
+    - New switch case: "balance_whole" → fmtWhole(balance)
+    - New private helper fmtWhole(double v):
+        Uses Math.floor() to truncate (never rounds up)
+        Casts to long, then formats with NumberFormat (Locale.US, groupingUsed=true)
+        Min/max fraction digits = 0 so no decimal point appears
+    - getVersion() bumped 1.1.3 → 1.1.4
+
+  BopsPlaceholderExpansion.java
+    - getVersion() bumped 1.1.3 → 1.1.4 (keeps PAPI version cache fresh)
+
+  build.gradle.kts
+    - version = "1.1.4"
+
+  plugin.yml
+    - version: '1.1.4'
+
+New Placeholder:
+  %bits_balance_whole%
+    Behavior: Math.floor() → comma-formatted integer string
+    Examples:
+      0.50     → "0"
+      1.25     → "1"
+      15.99    → "15"
+      1234.56  → "1,234"
+      50000.75 → "50,000"
+
+Unchanged Placeholders:
+  %bits_balance%           — e.g. 1542.87   (trailing zeros stripped)
+  %bits_balance_formatted% — e.g. 1,542.87  (commas + 2 decimal places)
+  %bits_balance_raw%       — e.g. 1542.87   (always 2 decimal places, no commas)
+  %bits_balance_commas%    — alias for balance_formatted
+  %bops_balance%           — same as bits_balance (different PAPI identifier)
+  %bops_balance_formatted% — same as bits_balance_formatted
+  %bops_balance_raw%       — same as bits_balance_raw
+
+Jar Path:
+  build/Bops-1.1.4.jar (21 KB)
+
+What to Test In-Game:
+  1. Replace Bops-1.1.3.jar with Bops-1.1.4.jar in plugins/ and restart server.
+  2. Confirm startup log: "PlaceholderAPI support enabled — ..."
+  3. /papi parse me %bits_balance_whole%
+       → With balance 0.00  : expect "0"
+       → With balance 1.99  : expect "1"   (must NOT be "2")
+       → With balance 1234.56: expect "1,234"
+       → With balance 50000.75: expect "50,000"
+  4. /bops give <you> 1234.56, then /papi parse me %bits_balance_whole% → "1,234"
+  5. Confirm existing placeholders still work:
+       /papi parse me %bits_balance%           → "1,234.56" style (stripped zeros)
+       /papi parse me %bits_balance_formatted% → "1,234.56"
+       /papi parse me %bits_balance_raw%       → "1234.56"
+  6. Update TAB config to use %bits_balance_whole% where you want the whole-number display.
+     Reload TAB and confirm the scoreboard shows the integer value.
+
+-------------------------------------
+Session: Bops v1.1.3 — PlaceholderAPI registration hardening
+Date: 2026-06-10
+-------------------------------------
+
+Goal:
+  Fix %bops_balance% and related placeholders not appearing in the TAB
+  scoreboard in-game. Root cause: previous jar (Bops-1.1.2.jar) may have
+  been built before the PAPI expansion classes were added (the audit session
+  explicitly did not rebuild). Additionally, PAPI caches expansion versions
+  and a stale/duplicate version string can silently prevent re-registration.
+
+What Changed:
+
+  BopsPlugin.java
+    - PlaceholderAPI registration now checks the boolean return from register()
+    - Logs one of three clear outcomes on every startup:
+        [INFO]  "PlaceholderAPI support enabled — %bops_balance%, %bops_balance_raw%, %bops_balance_formatted% active."
+        [WARN]  "PlaceholderAPI found but expansion registration failed (bops=X, bits=X). Check PAPI logs."
+        [INFO]  "PlaceholderAPI not found — placeholders skipped."
+
+  BopsPlaceholderExpansion.java
+    - getVersion() bumped 1.1.2 → 1.1.3
+
+  BitsLegacyExpansion.java
+    - getVersion() bumped 1.1.2 → 1.1.3
+
+  build.gradle.kts
+    - version = "1.1.3"
+
+  plugin.yml
+    - version: '1.1.3'
+    - soft-depend: [PlaceholderAPI] already present — unchanged
+
+Exact Placeholders (all three active):
+  %bops_balance%           — balance with trailing zeros stripped (e.g. 1234.5 or 100)
+  %bops_balance_raw%       — always 2 decimal places, no commas (e.g. 1234.50)
+  %bops_balance_formatted% — commas + always 2 decimal places (e.g. 1,234.50)
+
+  Legacy aliases still active (BitsLegacyExpansion):
+  %bits_balance%           — same as %bops_balance%
+  %bits_balance_raw%       — same as %bops_balance_raw%
+  %bits_balance_formatted% — same as %bops_balance_formatted%
+  %bits_balance_commas%    — alias for formatted
+
+Jar Path:
+  build/Bops-1.1.3.jar (21 KB)
+
+What to Test In-Game:
+  1. Drop Bops-1.1.3.jar into plugins/, replace old jar, restart server (no config changes needed).
+  2. Check console on startup — look for "PlaceholderAPI support enabled" or the WARN if it fails.
+  3. /papi parse me %bops_balance%           — should show your numeric balance (e.g. "0" or "1234.5")
+  4. /papi parse me %bops_balance_raw%       — should show 2 decimal places (e.g. "0.00" or "1234.50")
+  5. /papi parse me %bops_balance_formatted% — should show commas (e.g. "0.00" or "1,234.50")
+  6. Give yourself bops: /bops give <you> 1234.56
+     Then re-run /papi parse to confirm values update.
+  7. Check TAB scoreboard — %bops_balance_formatted% should now show in the sidebar.
+  8. Run /papi reload (if your server uses it) — placeholders should still resolve after reload.
+  9. If any /papi parse returns the raw placeholder text (not a value), check console for the WARN message.
+
+Known Architecture:
+  All three placeholders pull from BopsAPI.getBalance() → BalanceManager → BalanceStorage (YAML).
+  Registration is safe to call multiple times — persist() = true prevents double-registration on /papi reload.
+
+-------------------------------------
+Session: Bops rebrand source audit follow-up
+Date: 2026-06-10
+-------------------------------------
+
+Scope:
+  Audited current Bops source/docs for old Bits references after the rebrand.
+
+Changed:
+  README.md now documents /bops commands, bops.admin, plugins/Bops storage, and
+  the intentional legacy plugins/Bits/balances.yml migration path.
+
+Intentionally retained:
+  BitsLegacyExpansion and %bits_*% placeholders remain for backwards-compatible
+  PlaceholderAPI aliases.
+  BalanceStorage still reads plugins/Bits/balances.yml once for migration and
+  never deletes legacy balance data.
+  Older changelog/chatgpt history remains as historical pre-rebrand notes.
+
+Build:
+  Not rebuilt in this session; no Bops Java/resource behavior changed.
+
+Manual testing still needed:
+  Verify /bops balance/pay/top and bops.admin actions in-game.
+  Verify %bops_balance% and legacy %bits_balance% with PlaceholderAPI.
+  Verify first-run migration copies old plugins/Bits/balances.yml without
+  modifying or deleting the old file.
+
+-------------------------------------
+Session: Bops v1.1.2 — Full Rebrand (Bits → Bops)
+Date: 2026-06-10
+-------------------------------------
+
+Goal:
+  Complete rebrand of the server-side currency plugin from Bits to Bops.
+  Rename commands, permissions, messages, config, Java packages, and
+  PlaceholderAPI identifiers. Wire up PAPI and the public API (previously
+  excluded from build). Add safe automatic data migration from old Bits storage.
+
+What Changed:
+
+  Java package:
+    com.bits → com.bops (all classes moved/renamed)
+    Old com.bits directory fully deleted.
+
+  Class renames:
+    BitsPlugin.java         → BopsPlugin.java
+    BitsCommand.java        → BopsCommand.java
+    BitsAPI.java            → BopsAPI.java
+    BitsPlaceholderExpansion.java → BopsPlaceholderExpansion.java
+    [NEW] BitsLegacyExpansion.java — registers identifier "bits" for backwards compat
+    BalanceManager.java, BalanceStorage.java, MobRewardListener.java,
+    StreakTracker.java — same logic, updated package imports
+
+  BopsPlugin.java (main)
+    - Command registered as "bops"
+    - BopsAPI.init(balanceManager) called on enable
+    - PlaceholderAPI soft dependency: registers BopsPlaceholderExpansion (identifier "bops")
+      AND BitsLegacyExpansion (identifier "bits") if PAPI is present
+    - Logs "Bops vX.X.X enabled." / "Bops disabled."
+
+  BopsCommand.java
+    - All /bits usages → /bops
+    - All "bits.admin" permission checks → "bops.admin"
+    - All player messages say "bops" (e.g. "§6Your balance: §e1.5 bops")
+    - Tab completion and help text updated
+
+  BalanceStorage.java (migration logic added)
+    - On load(), if plugins/Bops/balances.yml does not exist:
+      checks for plugins/Bits/balances.yml
+      If found: loads from it, saves to new location, logs migration count
+      Old Bits data file is NOT deleted
+    - loadFrom(File) extracted as private helper
+
+  BopsPlaceholderExpansion.java [NEW - now included in build]
+    - identifier = "bops"; persist = true
+    - Params handled:
+        "balance"           → fmtStrip()  — trailing zeros stripped
+        "balance_formatted" → fmtCommas() — commas + 2 decimal places
+        "balance_raw"       → "%.2f"      — always 2 decimal places
+
+  BitsLegacyExpansion.java [NEW]
+    - identifier = "bits"; persist = true
+    - Handles all old params: balance, balance_formatted, balance_raw, balance_commas
+    - Delegates to BopsAPI — reads same live balance data
+
+  BopsAPI.java (com.bops.api.BopsAPI)
+    - Same interface as old BitsAPI but under new package
+    - Methods: getBalance(UUID), getBalance(Player), deposit, withdraw, setBalance, has
+
+  plugin.yml
+    - name: Bops
+    - version: 1.1.2
+    - main: com.bops.BopsPlugin
+    - command: bops (description, usage updated)
+    - permissions: bops.admin (default: op)
+    - soft-depend: [PlaceholderAPI] added
+
+  config.yml
+    - Comments updated to reference "Bops"
+    - All config keys unchanged (no migration needed for config)
+
+  build.gradle.kts
+    - group = "com.bops"
+    - version = "1.1.2"
+    - archiveBaseName = "Bops"
+    - Added PlaceholderAPI repo: https://repo.extendedclip.com/content/repositories/placeholderapi/
+    - Added compileOnly("me.clip:placeholderapi:2.11.6")
+    - Removed sourceSets excludes (api/ and placeholders/ now fully compiled)
+
+  settings.gradle.kts
+    - rootProject.name = "Bops"
+
+Build Result:
+  SUCCESS — build/Bops-1.1.2.jar (21 KB)
+
+New Placeholders (official):
+  %bops_balance%           — e.g. 1234.5   (strips trailing zeros)
+  %bops_balance_formatted% — e.g. 1,234.50 (commas + 2 decimal places)
+  %bops_balance_raw%       — e.g. 1234.50  (always 2 decimal places)
+
+Legacy Placeholders (backwards compat, still work):
+  %bits_balance%
+  %bits_balance_formatted%
+  %bits_balance_raw%
+  %bits_balance_commas%    (alias for balance_formatted)
+
+Public API Class:
+  com.bops.api.BopsAPI
+    double  getBalance(UUID)
+    double  getBalance(Player)
+    void    deposit(UUID, double)
+    boolean withdraw(UUID, double)
+    void    setBalance(UUID, double)
+    boolean has(UUID, double)
+
+Migration Behavior:
+  - First time Bops loads, it checks for plugins/Bits/balances.yml
+  - If found and plugins/Bops/balances.yml does not yet exist:
+    all balances are copied into the new Bops storage automatically
+  - Old Bits/balances.yml is left untouched (never deleted)
+  - If plugins/Bops/balances.yml already exists, migration is skipped entirely
+
+Architecture:
+  BopsPlugin (main)
+    -> BalanceStorage         — loads/saves balances.yml; migrates from Bits on first run
+    -> BalanceManager         — in-memory balance operations
+    -> BopsAPI                — static public API wrapper (com.bops.api)
+    -> BopsCommand            — /bops and all subcommands
+    -> MobRewardListener      — EntityDeathEvent; mob kill rewards
+         -> StreakTracker      — session-only per-player streak state
+    -> BopsPlaceholderExpansion — PAPI "bops" identifier (registered if PAPI present)
+    -> BitsLegacyExpansion      — PAPI "bits" identifier (backwards compat)
+
+TAB Scoreboard Integration Notes:
+  - TAB plugin handles the right-side sidebar/scoreboard display.
+  - To show Bops balance in TAB, use: %bops_balance_formatted%
+    This gives commas and 2 decimal places, e.g. "1,234.50"
+  - We are NOT building a custom scoreboard plugin. Bops only provides the
+    PlaceholderAPI values. TAB reads and displays them.
+  - Example TAB config line: "&6Bops: &e%bops_balance_formatted%"
+  - Legacy %bits_balance_formatted% also works if TAB was previously configured
+    with Bits placeholders.
+  - PlaceholderAPI must be installed for TAB to parse %bops_*% placeholders.
+
+What to Test In-Game:
+  1. /bops — should show own balance ("X bops")
+  2. /bops balance — same as above
+  3. /bops balance <player> — requires bops.admin
+  4. /bops pay <player> <amount> — online player transfer
+  5. /bops give <player> <amount> — bops.admin; works on offline players
+  6. /bops take <player> <amount> — bops.admin; works on offline players
+  7. /bops set <player> <amount> — bops.admin; works on offline players
+  8. /bops top — top 10 balances
+  9. /bops reload — reloads config (bops.admin)
+  10. Kill a hostile mob — should earn bops (check with /bops)
+  11. Kill the same mob 6+ times — diminishing returns should kick in
+  12. PlaceholderAPI: %bops_balance_formatted% — verify in TAB or chat plugin
+  13. PlaceholderAPI: %bits_balance% — legacy alias should still resolve
+  14. First run migration: confirm console logs "Migrating balances from Bits plugin data..."
+      if old plugins/Bits/balances.yml exists; confirm Bits/balances.yml is NOT deleted
+  15. Confirm old /bits command is gone (unknown command)
+
+Known Gaps (intentional):
+  - No Vault bridge
+  - No GUI or shop
+  - No database (YAML-only)
+
+
+-------------------------------------
+Session: Bits v1.2.0 — Public API, Leaderboards, PlaceholderAPI
+Date: 2026-06-06
+-------------------------------------
+
+Goal:
+  Finish the Bits foundation so future plugins (especially Claims) can safely
+  depend on it. Add a public static API, /bits top leaderboard, and soft
+  PlaceholderAPI integration.
+
+What Changed:
+  - BitsAPI static class added — the only entry point external plugins should use
+  - /bits top command added — top 10 balances, highest first, offline names resolved
+  - PlaceholderAPI expansion added — 3 placeholders, soft dependency (plugin works without it)
+  - BalanceManager.getAllBalances() added — returns unmodifiable map for leaderboard
+
+Files Changed:
+  src/main/java/com/bits/BitsPlugin.java
+    - Imports BitsAPI and BitsPlaceholderExpansion
+    - Calls BitsAPI.init(balanceManager) immediately after creating the manager
+    - Checks for PlaceholderAPI via getPluginManager().getPlugin("PlaceholderAPI")
+      and registers BitsPlaceholderExpansion if found; logs result
+
+  src/main/java/com/bits/commands/BitsCommand.java
+    - Added "top" case to the switch statement
+    - Added handleTop() — streams getAllBalances(), sorts descending, limits to 10,
+      resolves names via Bukkit.getOfflinePlayer(UUID).getName()
+    - Added "top" to tab completion and /bits help output
+    - Added import java.util.Map and java.util.UUID
+
+  src/main/java/com/bits/data/BalanceManager.java
+    - Added getAllBalances() returning Collections.unmodifiableMap(storage.getBalances())
+    - Added imports java.util.Collections and java.util.Map
+
+  src/main/java/com/bits/api/BitsAPI.java  [NEW]
+    - Package: com.bits.api
+    - Static class; init(BalanceManager) called by BitsPlugin.onEnable()
+    - Public methods: getBalance(UUID), getBalance(Player), deposit(UUID, double),
+      withdraw(UUID, double) → boolean, setBalance(UUID, double), has(UUID, double) → boolean
+    - mgr() helper throws IllegalStateException if called before init
+
+  src/main/java/com/bits/placeholders/BitsPlaceholderExpansion.java  [NEW]
+    - Package: com.bits.placeholders
+    - Extends PlaceholderExpansion; identifier = "bits"; persist = true
+    - onPlaceholderRequest(Player, String) handles 3 params:
+        "balance"        → fmtStrip()   — trailing zeros stripped
+        "balance_raw"    → String.format("%.2f", ...) — always 2 decimal places
+        "balance_commas" → NumberFormat (Locale.US, min/max 2 fraction digits)
+    - Unknown params return null (PAPI convention)
+
+  src/main/resources/plugin.yml
+    - Version bumped to 1.2.0
+    - soft-depend: [PlaceholderAPI] added
+    - Command usage updated to include "top"
+
+  build.gradle.kts
+    - version = "1.2.0"
+    - Added PlaceholderAPI maven repo: https://repo.extendedclip.com/content/repositories/placeholderapi/
+    - Added compileOnly("me.clip:placeholderapi:2.11.6")
+
+Build Result:
+  SUCCESS — build/Bits-1.2.0.jar
+
+New API Class:
+  com.bits.api.BitsAPI
+    double  getBalance(UUID)
+    double  getBalance(Player)
+    void    deposit(UUID, double)
+    boolean withdraw(UUID, double)
+    void    setBalance(UUID, double)
+    boolean has(UUID, double)
+
+New Placeholders:
+  %bits_balance%        — e.g. 1234.5   (strips trailing zeros)
+  %bits_balance_raw%    — e.g. 1234.50  (always 2 decimal places, no commas)
+  %bits_balance_commas% — e.g. 1,234.50 (commas + always 2 decimal places)
+
+New Commands:
+  /bits top — shows top 10 balances (all players, no permission required)
+
+Architecture:
+  BitsPlugin (main)
+    -> BalanceStorage         — loads/saves balances.yml (UUID → double)
+    -> BalanceManager         — in-memory balance operations
+    -> BitsAPI                — static public API wrapper (com.bits.api)
+    -> BitsCommand            — /bits and all subcommands
+    -> MobRewardListener      — EntityDeathEvent; mob kill rewards
+         -> StreakTracker      — session-only per-player streak state
+    -> BitsPlaceholderExpansion — PAPI placeholders (registered only if PAPI present)
+
+What David Needs to Test In-Game:
+  1. /bits top — should show top 10 balances, highest first
+  2. /bits top with no balances recorded — should show "No balances recorded yet."
+  3. /bits top with an offline player's UUID — name should resolve correctly
+  4. /bits top tab completion — "top" should appear in the list
+  5. /bits help — "top" entry should be visible
+  6. PlaceholderAPI installed: use %bits_balance% in a scoreboard/chat plugin — should show balance
+  7. PlaceholderAPI installed: %bits_balance_raw% — always 2 decimal places (e.g. 1234.50)
+  8. PlaceholderAPI installed: %bits_balance_commas% — commas (e.g. 1,234.50)
+  9. PlaceholderAPI NOT installed: plugin should still load and function normally
+  10. From another plugin: BitsAPI.has(uuid, 10.0) — should return true/false correctly
+  11. From another plugin: BitsAPI.withdraw(uuid, 10.0) — should deduct and return true
+  12. Verify existing mob rewards and /bits pay/give/take/set all still work (no regressions)
+
+Known Gaps (intentional):
+  - No Vault bridge
+  - No GUI or shop
+  - No database (YAML-only)
+  - No /bits top permission gate (leaderboard is public by design)
+
+
+-------------------------------------
+Session: Bits v1.1.0 — Mob Kill Rewards
+Date: 2026-06-06
+-------------------------------------
+
+Goal:
+  Add mob kill rewards as a stable feature on top of the v1.0.0 foundation.
+  Decimal balance support, configurable per-mob rewards, same-mob diminishing
+  returns (session-only), debug logging, and /bits reload.
+
+What Changed:
+  - Balances switched from long to double (decimals now supported throughout)
+  - Mob kill rewards added via EntityDeathEvent listener
+  - Same-mob streak tracking (session-only, resets on different mob or server restart)
+  - /bits reload command added (reloads config.yml, admin only)
+  - New config.yml keys auto-merged at startup via copyDefaults
+
+Files Changed:
+  src/main/java/com/bits/BitsPlugin.java
+    - Registers MobRewardListener
+    - Calls getConfig().options().copyDefaults(true) + saveConfig() on enable and reload
+    - Adds public reload() method for BitsCommand to call
+
+  src/main/java/com/bits/commands/BitsCommand.java
+    - Added "reload" subcommand case + handleReload()
+    - parsePositive / parseNonNegative now parse double instead of long
+    - Added fmt(double) helper for clean display (strips trailing zeros)
+    - All balance display updated to use fmt()
+    - Tab completion includes "reload" for admins
+
+  src/main/java/com/bits/data/BalanceManager.java
+    - All balance values changed from long to double
+    - setBalance() rounds to 2 decimal places to prevent floating-point drift
+    - Removed overflow guard (unnecessary for double in a game economy)
+
+  src/main/java/com/bits/data/BalanceStorage.java
+    - Map<UUID, Long> → Map<UUID, Double>
+    - yaml.getLong() → yaml.getDouble() (existing long balances load correctly)
+
+  src/main/java/com/bits/mobs/MobRewardListener.java  [NEW]
+    - Listens for EntityDeathEvent
+    - Skips if mob-rewards.enabled is false or killer is not a player
+    - Looks up per-mob reward in config; falls back to random(min, max) for unlisted Monsters
+    - Applies diminishing returns multiplier based on streak count
+    - Rounds final reward to 2 decimal places
+    - Debug logging controlled by debug: true/false in config
+
+  src/main/java/com/bits/mobs/StreakTracker.java  [NEW]
+    - Tracks current mob type and kill count per player (in-memory, session-only)
+    - recordKill() returns new streak count; resets streak if mob type changes
+
+  src/main/resources/config.yml
+    - Added: debug: false
+    - Added: mob-rewards.enabled, default-reward.min/max, diminishing-returns section
+    - Added: mob-rewards.mobs — full list of common hostile mobs with reward values
+
+  src/main/resources/plugin.yml
+    - Version bumped to 1.1.0
+    - Updated bits command usage string to include reload
+
+  build.gradle.kts
+    - version = "1.1.0"
+
+Build Result:
+  SUCCESS — build/Bits-1.1.0.jar
+
+Config Keys Added:
+  debug: false                                        — enable console debug logging
+  mob-rewards.enabled: true                           — master toggle for mob rewards
+  mob-rewards.default-reward.min: 0.5                — minimum reward for unlisted mobs
+  mob-rewards.default-reward.max: 1.5                — maximum reward for unlisted mobs
+  mob-rewards.diminishing-returns.enabled: true       — enable streak-based reduction
+  mob-rewards.diminishing-returns.same-mob-threshold: 5    — kills before reduction starts
+  mob-rewards.diminishing-returns.reduction-per-kill: 0.10 — reduction per kill past threshold
+  mob-rewards.diminishing-returns.min-multiplier: 0.10     — floor on reward multiplier
+  mob-rewards.mobs.*                                  — per-mob reward amounts (EntityType names)
+
+IMPORTANT — Config Migration:
+  If an existing config.yml is present from v1.0.0, the plugin will automatically
+  merge new default keys into it on startup (copyDefaults). David does NOT need to
+  delete config.yml manually. New keys will be appended on first run.
+
+Architecture:
+  BitsPlugin (main)
+    -> BalanceStorage  — loads/saves balances.yml on disk (UUID -> double)
+    -> BalanceManager  — in-memory balance operations (get/set/deposit/withdraw/pay)
+    -> BitsCommand     — handles /bits and all subcommands; implements TabCompleter
+    -> MobRewardListener — EntityDeathEvent handler; rewards player on mob kill
+         -> StreakTracker — session-only per-player streak state
+
+What David Needs to Test In-Game:
+  1. Kill a zombie — should receive bits (check with /bits)
+  2. Kill the same mob type 6+ times in a row — reward should gradually decrease
+  3. Kill a different mob type after a streak — reward should reset to full
+  4. Set debug: true in config.yml, run /bits reload, kill mobs — check console output
+  5. Run /bits reload as an admin — should confirm reload message
+  6. Run /bits pay <player> 1.5 — decimal pay should work
+  7. Run /bits give <player> 0.5 — decimal admin give should work
+  8. Restart server — confirm existing balances are preserved (no wipe)
+  9. Check that unlisted hostile mobs (e.g. ENDERMITE, SILVERFISH) still reward bits
+  10. Confirm non-hostile mobs (cows, pigs) give NO reward
+
+Streak Design Note:
+  Streak data is session-only by design — it is not saved to disk and resets on
+  server restart. This prevents abusive farming across restarts and was confirmed
+  as the correct behavior.
+
+Known Gaps (intentional):
+  - No PlaceholderAPI integration
+  - No GUI or shop
+  - No Vault bridge
+  - No economy API exposed to other plugins
 
 
 -------------------------------------

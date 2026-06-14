@@ -1,5 +1,94 @@
-Bits Plugin Changelog
+Bops Plugin Changelog
 =====================
+
+v1.1.5 — Add %bops_balance_whole% and %bops_balance_commas% to BopsPlaceholderExpansion
+------------------------------------------------------------------------------------------
+- %bops_balance_whole% added to BopsPlaceholderExpansion (was missing; %bits_balance_whole% existed in BitsLegacyExpansion only)
+  - Truncates (floors) the decimal portion — never rounds up
+  - Formats the whole number with US comma grouping
+  - Examples: 0.50 → "0", 15.99 → "15", 1234.56 → "1,234", 50000.75 → "50,000"
+- %bops_balance_commas% added as alias for %bops_balance_formatted% in BopsPlaceholderExpansion
+- Startup log updated to list all five active bops placeholders
+- All bops placeholders now parity with bits legacy placeholders:
+    %bops_balance%           — stripped trailing zeros (e.g. 1542.87)
+    %bops_balance_formatted% — commas + 2 decimal places (e.g. 1,542.87)
+    %bops_balance_commas%    — alias for balance_formatted
+    %bops_balance_raw%       — always 2 decimal places, no commas (e.g. 1542.87)
+    %bops_balance_whole%     — whole number only, comma-grouped (e.g. 1,542)
+
+v1.1.4 — Add %bits_balance_whole% placeholder
+-----------------------------------------------
+- New placeholder %bits_balance_whole% added to BitsLegacyExpansion
+  - Truncates (floors) the decimal portion — never rounds up
+  - Formats the whole number with US comma grouping
+  - Examples: 0.50 → "0", 15.99 → "15", 1234.56 → "1,234", 50000.75 → "50,000"
+- All existing placeholders unchanged:
+    %bits_balance%           — stripped trailing zeros (e.g. 1542.87)
+    %bits_balance_formatted% — commas + 2 decimal places (e.g. 1,542.87)
+    %bits_balance_raw%       — always 2 decimal places, no commas (e.g. 1542.87)
+    %bits_balance_commas%    — alias for balance_formatted
+
+v1.1.3 — PlaceholderAPI registration hardening
+------------------------------------------------
+- Registration now checks the boolean return value of PlaceholderExpansion.register()
+- Console now logs one of two clear outcomes on startup:
+    INFO  "PlaceholderAPI support enabled — %bops_balance%, %bops_balance_raw%, %bops_balance_formatted% active."
+    WARN  "PlaceholderAPI found but expansion registration failed (bops=X, bits=X). Check PAPI logs."
+    INFO  "PlaceholderAPI not found — placeholders skipped."  (if PAPI absent)
+- Version string in BopsPlaceholderExpansion and BitsLegacyExpansion bumped to 1.1.3
+  (PAPI caches expansion version; stale version could prevent re-registration)
+- No functional change to placeholder logic or balance storage
+
+v1.1.2 — Full rebrand from Bits to Bops
+-----------------------------------------
+- Plugin renamed from Bits to Bops (complete rebrand)
+- All commands changed from /bits to /bops
+- All permissions changed from bits.admin to bops.admin
+- All player-facing messages now say "bops" instead of "bits"
+- Java package renamed from com.bits to com.bops; all classes renamed accordingly
+- PlaceholderAPI now wired up and included in the build:
+  - %bops_balance%           — balance with trailing zeros stripped (e.g. 1234.5)
+  - %bops_balance_formatted% — balance with commas, 2 decimal places (e.g. 1,234.50)
+  - %bops_balance_raw%       — balance always 2 decimal places (e.g. 1234.50)
+  - Legacy %bits_balance%, %bits_balance_formatted%, %bits_balance_raw% still work
+    (also %bits_balance_commas% for full backwards compat)
+- BopsAPI static class added (com.bops.api.BopsAPI) — mirrors old BitsAPI
+- Data migration: on first run, if plugins/Bops/balances.yml is missing but
+  plugins/Bits/balances.yml exists, balances are automatically copied over;
+  old Bits data is never deleted
+
+v1.2.0 — Public API, leaderboards, PlaceholderAPI
+----------------------------------------------------
+- BitsAPI class added (com.bits.api.BitsAPI) — static API for other plugins
+  - getBalance(UUID), getBalance(Player)
+  - deposit(UUID, amount), withdraw(UUID, amount) → boolean
+  - setBalance(UUID, amount), has(UUID, amount) → boolean
+  - Other plugins can now safely call BitsAPI.has() and BitsAPI.withdraw()
+    without touching internal classes
+- /bits top added — shows the top 10 balances, highest first
+  - Resolves offline player names where available
+  - Gracefully handles missing names
+  - Available to all players (no permission required)
+- PlaceholderAPI soft dependency added
+  - %bits_balance%        — balance with trailing zeros stripped (e.g. 1234.5)
+  - %bits_balance_raw%    — balance always 2 decimal places (e.g. 1234.50)
+  - %bits_balance_commas% — balance with commas and 2 decimal places (e.g. 1,234.50)
+  - Plugin works normally if PlaceholderAPI is not installed
+- BalanceManager.getAllBalances() added (returns unmodifiable map for leaderboard use)
+
+v1.1.0 — Mob kill rewards
+--------------------------
+- Hostile mob kills now reward the killer with Bits
+- Rewards are configurable per mob type in config.yml (mob-rewards.mobs)
+- Global default reward range for unlisted hostile mobs (mob-rewards.default-reward.min/max)
+- Rewards support decimals (e.g. 1.5 bits)
+- Same-mob diminishing returns: killing the same mob type repeatedly reduces reward
+  - Configurable threshold, reduction rate, and minimum multiplier
+  - Killing a different mob resets the streak (session-only, not persisted)
+- Debug mode: set debug: true in config.yml to log reward calculations to console
+- /bits reload command added (bits.admin) — reloads config.yml without restart
+- Balances now stored and displayed as decimals (long → double)
+- New config keys auto-merged on startup; existing balances preserved
 
 v1.0.0 — Initial release
 --------------------------

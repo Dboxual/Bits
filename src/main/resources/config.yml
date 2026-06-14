@@ -1,3 +1,23 @@
+debug: false
+
 settings:
-  # Starting balance for players with no recorded balance
+  # Starting balance for players with no recorded Bops balance
   starting-balance: 0
+
+mob-rewards:
+  enabled: true
+
+  # Bops reward range for hostile mob kills
+  reward-range:
+    min: 0.1
+    max: 0.5
+
+  # Diminishing returns for killing the same mob type repeatedly
+  diminishing-returns:
+    enabled: true
+    # Full reward for this many consecutive same-mob kills
+    same-mob-threshold: 5
+    # Reward is reduced by this fraction per kill beyond the threshold
+    reduction-per-kill: 0.10
+    # Reward multiplier never drops below this value (0.10 = 10% of base)
+    min-multiplier: 0.10

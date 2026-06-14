@@ -1,6 +1,6 @@
-package com.bits.data;
+package com.bops.data;
 
-import com.bits.BitsPlugin;
+import com.bops.BopsPlugin;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
@@ -11,37 +11,53 @@ import java.util.UUID;
 
 public class BalanceStorage {
 
-    private final BitsPlugin plugin;
+    private final BopsPlugin plugin;
     private final File file;
-    private final Map<UUID, Long> balances = new HashMap<>();
+    private final Map<UUID, Double> balances = new HashMap<>();
 
-    public BalanceStorage(BitsPlugin plugin) {
+    public BalanceStorage(BopsPlugin plugin) {
         this.plugin = plugin;
         this.file = new File(plugin.getDataFolder(), "balances.yml");
     }
 
     public void load() {
+        file.getParentFile().mkdirs();
+
         if (!file.exists()) {
-            file.getParentFile().mkdirs();
+            // Migrate from old Bits plugin data if present
+            File bitsBalances = new File(plugin.getDataFolder().getParentFile(), "Bits/balances.yml");
+            if (bitsBalances.exists()) {
+                plugin.getLogger().info("Migrating balances from Bits plugin data...");
+                loadFrom(bitsBalances);
+                save(); // write immediately to bops balances.yml
+                plugin.getLogger().info("Migration complete: " + balances.size() + " balance(s) carried over from Bits.");
+                return;
+            }
+
             try { file.createNewFile(); } catch (IOException e) {
                 plugin.getLogger().severe("Could not create balances.yml: " + e.getMessage());
             }
         }
-        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
+
+        loadFrom(file);
+        plugin.getLogger().info("Loaded " + balances.size() + " balance(s).");
+    }
+
+    private void loadFrom(File source) {
+        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(source);
         balances.clear();
         if (yaml.isConfigurationSection("balances")) {
             for (String key : yaml.getConfigurationSection("balances").getKeys(false)) {
                 try {
-                    balances.put(UUID.fromString(key), yaml.getLong("balances." + key));
+                    balances.put(UUID.fromString(key), yaml.getDouble("balances." + key));
                 } catch (IllegalArgumentException ignored) {}
             }
         }
-        plugin.getLogger().info("Loaded " + balances.size() + " balance(s).");
     }
 
     public void save() {
         YamlConfiguration yaml = new YamlConfiguration();
-        for (Map.Entry<UUID, Long> entry : balances.entrySet()) {
+        for (Map.Entry<UUID, Double> entry : balances.entrySet()) {
             yaml.set("balances." + entry.getKey(), entry.getValue());
         }
         try {
@@ -51,7 +67,7 @@ public class BalanceStorage {
         }
     }
 
-    public Map<UUID, Long> getBalances() {
+    public Map<UUID, Double> getBalances() {
         return balances;
     }
 }

@@ -1,15 +1,16 @@
-name: Bits
-version: '1.0.0'
-main: com.bits.BitsPlugin
+name: Bops
+version: '1.1.5'
+main: com.bops.BopsPlugin
 api-version: '1.21'
 description: Player currency plugin
+soft-depend: [PlaceholderAPI]
 
 commands:
-  bits:
-    description: Manage your Bits balance
-    usage: /bits [balance|pay|give|take|set] [args...]
+  bops:
+    description: Manage your Bops balance
+    usage: /bops [balance|pay|top|give|take|set|reload] [args...]
 
 permissions:
-  bits.admin:
-    description: Access to admin Bits commands (give, take, set, check others' balances)
+  bops.admin:
+    description: Access to admin Bops commands (give, take, set, reload, check others' balances)
     default: op
